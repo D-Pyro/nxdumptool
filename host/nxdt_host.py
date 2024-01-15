@@ -49,6 +49,8 @@ import usb.util
 import warnings
 import base64
 
+import configparser
+
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import filedialog, messagebox, font, scrolledtext
@@ -136,9 +138,14 @@ COPYRIGHT_TEXT = f'Copyright (c) {COPYRIGHT_YEAR}, {USB_DEV_MANUFACTURER}'
 SERVER_START_MSG = f'Please connect a Nintendo Switch console running {USB_DEV_PRODUCT}.'
 SERVER_STOP_MSG = f'Exit {USB_DEV_PRODUCT} on your console or disconnect it at any time to stop the server.'
 
+# Load the configuration from the INI file
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 # Default directory paths.
 INITIAL_DIR = os.path.dirname(os.path.abspath(os.path.expanduser(os.path.expandvars(sys.argv[0]))))
-DEFAULT_DIR = os.path.join(INITIAL_DIR, USB_DEV_PRODUCT)
+# Get the default directory from the INI file or use a fallback if not present
+DEFAULT_DIR = config.get('Directories', 'Output', fallback=os.path.join(INITIAL_DIR, USB_DEV_PRODUCT))
 
 # Application icon (PNG).
 # Embedded to load it as the icon for all windows using PhotoImage (which doesn't support ICO files) + wm_iconphoto.
@@ -302,7 +309,7 @@ TASKBAR_LIB = b'TVNGVAIAAQAAAAAACQQAAAAAAABBAAAAAQAAAAAAAAAOAAAA/////wAAAAAAAAAA
 
 # Global variables used throughout the code.
 g_cliMode: bool = False
-g_outputDir: str = ''
+g_outputDir = config.get('Directories', 'Output', fallback=DEFAULT_DIR)
 g_logLevelIntVar: tk.IntVar | None = None
 
 g_osType: str = ''
@@ -629,7 +636,7 @@ def usbGetDeviceEndpoints() -> bool:
             if not g_cliMode:
                 utilsLogException(traceback.format_exc())
 
-            g_logger.error('Fatal error ocurred while enumerating USB devices.')
+            g_logger.error('Fatal error occurred while enumerating USB devices.')
 
             if g_isWindows:
                 g_logger.error('Try reinstalling the libusbK driver using Zadig.')
@@ -1195,9 +1202,17 @@ def uiToggleElements(flag: bool) -> None:
         g_tkVerboseCheckbox.configure(state='disabled')
 
 def uiChooseDirectory() -> None:
+    global g_outputDir, config
+
     dir = filedialog.askdirectory(parent=g_tkRoot, title='Select an output directory', initialdir=INITIAL_DIR, mustexist=True)
     if dir:
-        uiUpdateDirectoryField(os.path.abspath(dir))
+        g_outputDir = os.path.abspath(dir)
+        uiUpdateDirectoryField(g_outputDir)
+
+        # Save the output directory to config.ini
+        config['Directories'] = {'Output': g_outputDir}
+        with open('config.ini', 'w') as configfile:
+            config.write(configfile)
 
 def uiUpdateDirectoryField(path: str) -> None:
     assert g_tkDirText is not None
