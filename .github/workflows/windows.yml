@@ -1,0 +1,35 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches:
+      - rewrite
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.11.7
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pyinstaller
+        pip install -r host/requirements.txt
+
+    - name: Build EXE
+      run: pyinstaller --onefile --noconsole --icon=host/nxdt.ico host/nxdt_host.py
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: nxdt_host
+        path: dist/nxdt_host.exe
+
